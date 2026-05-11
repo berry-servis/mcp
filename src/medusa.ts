@@ -101,7 +101,7 @@ export async function createPendingOrder(
   config: MedusaConfig,
   req: OrderRequest
 ): Promise<CreatePendingOrderResponse> {
-  return requestJson(config, '/store/firmy/orders/pending', {
+  return requestJson(config, '/store/office/orders/pending', {
     method: 'POST',
     body: JSON.stringify(req),
   });

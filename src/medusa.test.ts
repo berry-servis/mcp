@@ -45,7 +45,7 @@ describe('medusa client', () => {
     expect(url).toContain('korporatni-dzemy-large');
   });
 
-  it('createPendingOrder POSTs to /store/firmy/orders/pending', async () => {
+  it('createPendingOrder POSTs to /store/office/orders/pending', async () => {
     await createPendingOrder(config, {
       items: [{ variant_id: 'v1', quantity: 30 }],
       metadata: {
@@ -59,7 +59,7 @@ describe('medusa client', () => {
     });
     const [url, init] = (fetch as unknown as { mock: { calls: [string, RequestInit][] } }).mock
       .calls[0];
-    expect(url).toBe('http://localhost:9000/store/firmy/orders/pending');
+    expect(url).toBe('http://localhost:9000/store/office/orders/pending');
     expect(init.method).toBe('POST');
   });
 });
