@@ -27,8 +27,7 @@ After publishing to npm, add to `~/Library/Application Support/Claude/claude_des
       "args": ["-y", "mcp-strawberries"],
       "env": {
         "MEDUSA_BACKEND_URL": "https://api.berryservis.cz",
-        "MEDUSA_OFFICE_PUBLISHABLE_KEY": "pk_...",
-        "MEDUSA_FIRMY_PUBLISHABLE_KEY": "pk_..."
+        "MEDUSA_OFFICE_PUBLISHABLE_KEY": "pk_..."
       }
     }
   }
@@ -66,11 +65,8 @@ To smoke-test against Claude Desktop locally, point its config to `node /absolut
 | Var | Required | Notes |
 | --- | --- | --- |
 | `MEDUSA_BACKEND_URL` | yes | e.g. `https://api.berryservis.cz` |
-| `MEDUSA_OFFICE_PUBLISHABLE_KEY` | yes¹ | Scoped to the office (B2B) Medusa sales channel |
-| `MEDUSA_FIRMY_PUBLISHABLE_KEY` | deprecated alias | Will be removed after the migration soak window |
+| `MEDUSA_OFFICE_PUBLISHABLE_KEY` | yes | Scoped to the office (B2B) Medusa sales channel |
 | `PORT` | no | HTTP entrypoint port, default `3000` |
-
-¹ `MEDUSA_OFFICE_PUBLISHABLE_KEY` is preferred; `MEDUSA_FIRMY_PUBLISHABLE_KEY` is accepted as a fallback during the migration phase.
 
 ## How an order flows
 

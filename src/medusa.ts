@@ -50,14 +50,9 @@ export interface MedusaConfig {
 
 export function loadConfig(): MedusaConfig {
   const backendUrl = process.env.MEDUSA_BACKEND_URL;
-  const publishableKey =
-    process.env.MEDUSA_OFFICE_PUBLISHABLE_KEY ?? process.env.MEDUSA_FIRMY_PUBLISHABLE_KEY;
+  const publishableKey = process.env.MEDUSA_OFFICE_PUBLISHABLE_KEY;
   if (!backendUrl) throw new Error('MEDUSA_BACKEND_URL is required');
-  if (!publishableKey) {
-    throw new Error(
-      'MEDUSA_OFFICE_PUBLISHABLE_KEY is required (or the deprecated MEDUSA_FIRMY_PUBLISHABLE_KEY)',
-    );
-  }
+  if (!publishableKey) throw new Error('MEDUSA_OFFICE_PUBLISHABLE_KEY is required');
   return { backendUrl: backendUrl.replace(/\/$/, ''), publishableKey };
 }
 
