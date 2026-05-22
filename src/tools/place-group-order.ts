@@ -27,7 +27,7 @@ export async function placeGroupOrder(
 
   const errors: string[] = [];
   if (!isStrawberrySeason(group.deliveryDate)) errors.push('group delivery date is not an open season Tuesday');
-  if (isPastCutoff(group.deliveryDate)) errors.push('this group is closed (past the Sunday 20:00 cutoff)');
+  if (isPastCutoff(group.deliveryDate)) errors.push('this group is closed (past the Monday 10:00 cutoff)');
   if (!Number.isInteger(args.boxes) || args.boxes < 1) errors.push('boxes must be an integer >= 1');
   if (!EMAIL_RE.test(args.contact_email ?? '')) errors.push('contact_email is not a valid email');
   if (!args.contact_name?.trim()) errors.push('contact_name is required');

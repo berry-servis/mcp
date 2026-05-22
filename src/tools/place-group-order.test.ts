@@ -47,8 +47,8 @@ describe('placeGroupOrder', () => {
       placeGroupOrder(config, { group_code: code, boxes: 1, jam_addon: false, contact_email: 'nope', contact_name: 'J' })
     ).rejects.toThrow();
   });
-  it('rejects past the Sunday cutoff', async () => {
-    vi.setSystemTime(new Date('2026-06-08T09:00:00')); // Monday before delivery
+  it('rejects past the Monday cutoff', async () => {
+    vi.setSystemTime(new Date('2026-06-08T10:01:00')); // Monday after 10:00, before delivery
     await expect(
       placeGroupOrder(config, { group_code: code, boxes: 1, jam_addon: false, contact_email: 'a@b.cz', contact_name: 'J' })
     ).rejects.toThrow();
