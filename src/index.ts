@@ -43,5 +43,5 @@ const httpServer = createHttpServer(async (req, res) => {
 });
 
 httpServer.listen(PORT, () => {
-  console.log(`mcp-strawberries listening on :${PORT} — POST /mcp, GET /health`);
+  console.log(`mcp listening on :${PORT} - POST /mcp, GET /health`);
 });
