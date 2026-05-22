@@ -45,7 +45,7 @@ export function createServer() {
         'List Tuesday delivery dates (ISO YYYY-MM-DD) available this strawberry season. Returns an empty list outside the season.',
       inputSchema: {},
     },
-    async () => jsonText(listAvailableTuesdays())
+    async () => jsonText(await listAvailableTuesdays())
   );
 
   server.registerTool(
@@ -142,7 +142,7 @@ export function createServer() {
         address: z.string().min(1).describe('Office delivery address (Prague only)'),
       },
     },
-    async (args) => jsonText(createGroupOrder(args as CreateGroupOrderArgs))
+    async (args) => jsonText(await createGroupOrder(args as CreateGroupOrderArgs))
   );
 
   server.registerTool(

@@ -1,6 +1,6 @@
 import { createComgateCart, type MedusaConfig } from '../medusa.js';
 import { decodeGroupCode } from '../lib/group-code.js';
-import { isStrawberrySeason } from '../lib/tuesdays.js';
+import { fetchOpenTuesdays } from '../lib/availability.js';
 import { isPastCutoff } from '../lib/cutoff.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -26,7 +26,8 @@ export async function placeGroupOrder(
   if (!group) throw new Error('Neplatny kod skupiny (group_code).');
 
   const errors: string[] = [];
-  if (!isStrawberrySeason(group.deliveryDate)) errors.push('group delivery date is not an open season Tuesday');
+  const open = await fetchOpenTuesdays();
+  if (!open.includes(group.deliveryDate)) errors.push('group delivery date is not an open delivery Tuesday');
   if (isPastCutoff(group.deliveryDate)) errors.push('this group is closed (past the Monday 10:00 cutoff)');
   if (!Number.isInteger(args.boxes) || args.boxes < 1) errors.push('boxes must be an integer >= 1');
   if (!EMAIL_RE.test(args.contact_email ?? '')) errors.push('contact_email is not a valid email');

@@ -1,4 +1,4 @@
-import { isStrawberrySeason } from '../lib/tuesdays.js';
+import { fetchOpenTuesdays } from '../lib/availability.js';
 import { encodeGroupCode, generateGroupToken } from '../lib/group-code.js';
 
 export interface CreateGroupOrderArgs {
@@ -14,12 +14,13 @@ export interface CreateGroupOrderResult {
   share_message: string;
 }
 
-export function createGroupOrder(args: CreateGroupOrderArgs): CreateGroupOrderResult {
+export async function createGroupOrder(args: CreateGroupOrderArgs): Promise<CreateGroupOrderResult> {
   const errors: string[] = [];
   if (!args.office?.trim()) errors.push('office is required');
   if (!args.address?.trim()) errors.push('address is required (Prague only)');
-  if (!isStrawberrySeason(args.delivery_date))
-    errors.push('delivery_date must be a Tuesday in the strawberry season (May 12 - July 7)');
+  const open = await fetchOpenTuesdays();
+  if (!open.includes(args.delivery_date))
+    errors.push('delivery_date must be an open delivery Tuesday (see list_available_tuesdays)');
   if (errors.length) throw new Error(`Validation failed: ${errors.join('; ')}`);
 
   const office = args.office.trim();
