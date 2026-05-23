@@ -1,21 +1,13 @@
-// HTTP entrypoint for production (Railway). Uses Streamable HTTP transport,
-// which supersedes the deprecated SSE-only transport while still supporting
-// SSE streaming for server-to-client messages.
+// HTTP entrypoint for production (Railway). Uses Streamable HTTP transport in
+// stateless mode: a fresh MCP server + transport per request. This supports any
+// number of independent clients (each tool call is self-contained), avoiding the
+// single-shared-session limit of a long-lived transport.
 
 import { createServer as createHttpServer } from 'node:http';
-import { randomUUID } from 'node:crypto';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createServer } from './server.js';
 
 const PORT = Number(process.env.PORT ?? 3000);
-
-// One MCP server + one stateful transport, shared across requests. Stateful
-// mode allows the SDK to manage session ids, suitable for the public MCP host.
-const mcpServer = createServer();
-const transport = new StreamableHTTPServerTransport({
-  sessionIdGenerator: () => randomUUID(),
-});
-await mcpServer.connect(transport);
 
 const httpServer = createHttpServer(async (req, res) => {
   // Healthcheck for Railway / load balancers.
@@ -26,7 +18,20 @@ const httpServer = createHttpServer(async (req, res) => {
   }
 
   if (req.url?.startsWith('/mcp')) {
+    if (req.method !== 'POST') {
+      // Stateless mode has no standalone SSE stream; clients only POST.
+      res.writeHead(405, { 'content-type': 'application/json', allow: 'POST' });
+      res.end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32000, message: 'Method Not Allowed' }, id: null }));
+      return;
+    }
+    const server = createServer();
+    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+    res.on('close', () => {
+      transport.close();
+      server.close();
+    });
     try {
+      await server.connect(transport);
       await transport.handleRequest(req, res);
     } catch (err) {
       console.error('MCP request error:', err);
