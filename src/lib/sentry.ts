@@ -32,26 +32,22 @@ export function captureException(err: unknown, extra?: Record<string, unknown>):
   _activeSdk.captureException(err, extra ? { extra } : undefined);
 }
 
-export interface SentryScopeLike {
-  setTag(key: string, value: unknown): void;
-  setExtra(key: string, value: unknown): void;
-}
-
 /**
- * Runs `fn` against a fresh Sentry scope so tags/extra set inside it apply
- * only to the capture that follows. No-op (still runs `fn` against a throwaway
- * scope) when Sentry is not initialized, so callers can tag unconditionally.
+ * Capture a tool error with its `tool` tag and scrubbed `args` extra attached.
+ * Tagging and capture happen inside ONE Sentry scope so the tag/extra actually
+ * attach to the event (Sentry.withScope reverts the forked scope on return, so
+ * capturing after the scope block would lose them). No-op when uninitialized.
  */
-export function withSentryScope(fn: (scope: SentryScopeLike) => void): void {
-  if (!_activeSdk) {
-    fn({ setTag: () => {}, setExtra: () => {} });
-    return;
-  }
-  _activeSdk.withScope((scope) => {
-    fn({
-      setTag: (k, v) => scope.setTag(k, v as never),
-      setExtra: (k, v) => scope.setExtra(k, v),
-    });
+export function captureToolError(
+  err: unknown,
+  ctx: { tool: string; args: Record<string, unknown> }
+): void {
+  if (!_activeSdk) return;
+  const sdk = _activeSdk;
+  sdk.withScope((scope) => {
+    scope.setTag('tool', ctx.tool);
+    scope.setExtra('args', ctx.args);
+    sdk.captureException(err);
   });
 }
 

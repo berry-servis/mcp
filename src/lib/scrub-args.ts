@@ -4,6 +4,7 @@ export const PII_ARG_KEYS = [
   'company_name', 'ico', 'dic', 'billing_email', 'delivery_address', 'address',
   'delivery_contact_name', 'delivery_contact_phone', 'delivery_notes',
   'contact_email', 'contact_name',
+  'office', 'group_code',
 ] as const;
 
 const PII_KEY_SET: ReadonlySet<string> = new Set(PII_ARG_KEYS);
