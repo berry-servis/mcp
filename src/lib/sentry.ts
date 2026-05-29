@@ -32,6 +32,29 @@ export function captureException(err: unknown, extra?: Record<string, unknown>):
   _activeSdk.captureException(err, extra ? { extra } : undefined);
 }
 
+export interface SentryScopeLike {
+  setTag(key: string, value: unknown): void;
+  setExtra(key: string, value: unknown): void;
+}
+
+/**
+ * Runs `fn` against a fresh Sentry scope so tags/extra set inside it apply
+ * only to the capture that follows. No-op (still runs `fn` against a throwaway
+ * scope) when Sentry is not initialized, so callers can tag unconditionally.
+ */
+export function withSentryScope(fn: (scope: SentryScopeLike) => void): void {
+  if (!_activeSdk) {
+    fn({ setTag: () => {}, setExtra: () => {} });
+    return;
+  }
+  _activeSdk.withScope((scope) => {
+    fn({
+      setTag: (k, v) => scope.setTag(k, v as never),
+      setExtra: (k, v) => scope.setExtra(k, v),
+    });
+  });
+}
+
 // Test-only export for resetting module state between tests.
 export function __resetSentryForTests(): void {
   _activeSdk = null;
