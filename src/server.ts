@@ -15,6 +15,7 @@ import {
 } from './tools/request-jam-pack-order.js';
 import { createGroupOrder, type CreateGroupOrderArgs } from './tools/create-group-order.js';
 import { placeGroupOrder, type PlaceGroupOrderArgs } from './tools/place-group-order.js';
+import { withSentry } from './lib/with-sentry.js';
 
 function jsonText(value: unknown): { content: Array<{ type: 'text'; text: string }> } {
   return { content: [{ type: 'text', text: JSON.stringify(value, null, 2) }] };
@@ -35,7 +36,7 @@ export function createServer() {
       description: 'Get the Berry Servis company story, certifications, and contact info.',
       inputSchema: {},
     },
-    async () => ({ content: [{ type: 'text', text: getBerryServisStory() }] })
+    withSentry('get_berry_servis_story', async () => ({ content: [{ type: 'text', text: getBerryServisStory() }] }))
   );
 
   server.registerTool(
@@ -45,7 +46,7 @@ export function createServer() {
         'List Tuesday delivery dates (ISO YYYY-MM-DD) available this strawberry season. Returns an empty list outside the season.',
       inputSchema: {},
     },
-    async () => jsonText(await listAvailableTuesdays())
+    withSentry('list_available_tuesdays', async () => jsonText(await listAvailableTuesdays()))
   );
 
   server.registerTool(
@@ -58,10 +59,10 @@ export function createServer() {
         jam_addon: z.boolean(),
       },
     },
-    async (args) => {
+    withSentry('get_quote', async (args) => {
       const config = loadConfig();
       return jsonText(await getQuote(config, args));
-    }
+    })
   );
 
   server.registerTool(
@@ -71,10 +72,10 @@ export function createServer() {
         'List the three corporate jam pack products (Small/Medium/Large) with current B2B prices.',
       inputSchema: {},
     },
-    async () => {
+    withSentry('get_jam_packs', async () => {
       const config = loadConfig();
       return jsonText(await getJamPacksList(config));
-    }
+    })
   );
 
   server.registerTool(
@@ -96,10 +97,10 @@ export function createServer() {
         jam_addon: z.boolean(),
       },
     },
-    async (args) => {
+    withSentry('request_strawberry_order', async (args) => {
       const config = loadConfig();
       return jsonText(await requestStrawberryOrder(config, args as RequestStrawberryOrderArgs));
-    }
+    })
   );
 
   server.registerTool(
@@ -125,10 +126,10 @@ export function createServer() {
         delivery_date: z.string().describe('ISO date (YYYY-MM-DD), at least 5 days from today'),
       },
     },
-    async (args) => {
+    withSentry('request_jam_pack_order', async (args) => {
       const config = loadConfig();
       return jsonText(await requestJamPackOrder(config, args as RequestJamPackOrderArgs));
-    }
+    })
   );
 
   server.registerTool(
@@ -142,7 +143,7 @@ export function createServer() {
         address: z.string().min(1).describe('Office delivery address (Prague only)'),
       },
     },
-    async (args) => jsonText(await createGroupOrder(args as CreateGroupOrderArgs))
+    withSentry('create_group_order', async (args) => jsonText(await createGroupOrder(args as CreateGroupOrderArgs)))
   );
 
   server.registerTool(
@@ -158,10 +159,10 @@ export function createServer() {
         contact_name: z.string().min(1),
       },
     },
-    async (args) => {
+    withSentry('place_group_order', async (args) => {
       const config = loadConfig();
       return jsonText(await placeGroupOrder(config, args as PlaceGroupOrderArgs));
-    }
+    })
   );
 
   return server;

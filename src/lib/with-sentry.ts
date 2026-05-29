@@ -13,7 +13,8 @@ type ToolHandler = (...args: any[]) => Promise<any>;
  * behaviour is unchanged while Sentry still sees the error (which it otherwise
  * never would — the SDK swallows tool throws).
  */
-export function withSentry<T extends ToolHandler>(tool: string, handler: T): T {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function withSentry<T extends ToolHandler>(tool: string, handler: T): any {
   const wrapped = (async (...callArgs: unknown[]) => {
     try {
       return await handler(...callArgs);
