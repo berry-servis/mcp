@@ -101,10 +101,19 @@ export async function createPendingOrder(
   config: MedusaConfig,
   req: OrderRequest
 ): Promise<CreatePendingOrderResponse> {
-  return requestJson(config, '/store/office/orders/pending', {
-    method: 'POST',
-    body: JSON.stringify(req),
-  });
+  // DORMANT: the backend `/store/office/orders/pending` route was never built,
+  // so this call always 404s (see MEDUSA-REVIEW C3 / project_mcp_pending_order_gap).
+  // Until the design fork is resolved — either implement that route OR repoint
+  // this to the existing cart + `/store/office/carts/:id/confirm` flow (the
+  // group-order path createComgateCart already does the latter) and resolve
+  // real variant IDs instead of handle placeholders — fail fast with a clear,
+  // actionable message rather than attempting a request that cannot succeed.
+  throw new Error(
+    `Pending B2B orders are not available: the backend route ` +
+      `${config.backendUrl}/store/office/orders/pending is not implemented. ` +
+      `${req.items.length} item(s) were not submitted. Use the self-serve group-order ` +
+      `flow (create_group_order + place_group_order) or contact info@berryservis.cz.`
+  );
 }
 
 /* ---------- Group orders: Comgate cart composition ---------- */

@@ -26,7 +26,7 @@ export function createServer() {
     { name: 'berry-servis', version: '0.1.0' },
     {
       instructions:
-        'MCP server for Berry Servis — order Czech strawberries (Tuesday delivery in Prague during May–early July) or corporate jam packs year-round. Use get_berry_servis_story for context, list_available_tuesdays + get_quote to plan, then request_strawberry_order or request_jam_pack_order to place a pending order. The customer must click an emailed confirmation link within 24h. For a self-serve group buy, use create_group_order to get a shareable code, then place_group_order to get a card pay-link for each colleague.',
+        'MCP server for Berry Servis — order Czech strawberries (Tuesday delivery in Prague during May–early July) or corporate jam packs year-round. Use get_berry_servis_story for context, list_available_tuesdays + get_quote to plan. To place an order, use the self-serve group-order flow: create_group_order to get a shareable code, then place_group_order to get a card pay-link for each colleague. NOTE: the email-confirmation B2B order tools (request_strawberry_order / request_jam_pack_order) are TEMPORARILY UNAVAILABLE while their backend route is being built — do not use them; use the group-order flow or direct the customer to info@berryservis.cz instead.',
     }
   );
 
@@ -82,7 +82,7 @@ export function createServer() {
     'request_strawberry_order',
     {
       description:
-        'Request a strawberry delivery for a specific Tuesday in season. Creates a pending order — customer must click the confirmation link in the email sent to billing_email within 24h. Validates IČO (8 digits), Czech phone (+420 followed by 9 digits), email, and that the Tuesday is in season.',
+        'TEMPORARILY UNAVAILABLE — do not call. Its backend route (/store/office/orders/pending) is not yet implemented, so it returns a clear error. Use create_group_order + place_group_order instead, or direct the customer to info@berryservis.cz. (Intended use: request a strawberry delivery for a specific Tuesday in season as an email-confirmed pending B2B order.)',
       inputSchema: {
         company_name: z.string().min(1),
         ico: z.string(),
@@ -107,7 +107,7 @@ export function createServer() {
     'request_jam_pack_order',
     {
       description:
-        'Request a corporate jam-pack delivery for any date with at least 5 days lead time. Creates a pending order — same email-confirmation gate as strawberry orders.',
+        'TEMPORARILY UNAVAILABLE — do not call. Its backend route (/store/office/orders/pending) is not yet implemented, so it returns a clear error. Use create_group_order + place_group_order instead, or direct the customer to info@berryservis.cz. (Intended use: request a corporate jam-pack delivery for any date with at least 5 days lead time as an email-confirmed pending order.)',
       inputSchema: {
         company_name: z.string().min(1),
         ico: z.string(),
