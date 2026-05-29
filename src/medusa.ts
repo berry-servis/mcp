@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 export interface CartItem {
   variant_id: string;
   quantity: number;
@@ -40,8 +42,12 @@ export interface MedusaProduct {
 
 interface CreatePendingOrderResponse {
   order_id: string;
-  confirmation_token: string;
+  display_id?: string | number;
 }
+
+// B2B office orders are paid by invoice (matches the office storefront's
+// placeOfficeOrder). Kept as a named constant so both consumers agree.
+const B2B_PAYMENT_PROVIDER_ID = 'invoice';
 
 export interface MedusaConfig {
   backendUrl: string;
@@ -97,23 +103,110 @@ export async function getJamPacks(
   return requestJson(config, `/store/products?${query}`);
 }
 
+/** Resolve product handles -> first-variant ids on the office channel. */
+async function resolveVariantIdsByHandle(
+  config: MedusaConfig,
+  handles: string[]
+): Promise<Map<string, string>> {
+  const unique = [...new Set(handles)];
+  const query = unique.map((h) => `handle[]=${encodeURIComponent(h)}`).join('&');
+  const { products } = await requestJson<{ products: MedusaProduct[] }>(
+    config,
+    `/store/products?${query}`
+  );
+  const map = new Map<string, string>();
+  for (const p of products) {
+    const variantId = p.variants?.[0]?.id;
+    if (variantId) map.set(p.handle, variantId);
+  }
+  return map;
+}
+
+/**
+ * Place a B2B office order by building a cart and confirming it through the
+ * existing `/store/office/carts/:id/confirm` route — the same completion path
+ * the office storefront uses. Items arrive as product *handles*; we resolve
+ * them to real variant ids (the previous code sent handles as variant_id, which
+ * would never resolve), build the cart on the office channel, attach the
+ * invoice payment session, and confirm with a server-stored token.
+ */
 export async function createPendingOrder(
   config: MedusaConfig,
   req: OrderRequest
 ): Promise<CreatePendingOrderResponse> {
-  // DORMANT: the backend `/store/office/orders/pending` route was never built,
-  // so this call always 404s (see MEDUSA-REVIEW C3 / project_mcp_pending_order_gap).
-  // Until the design fork is resolved — either implement that route OR repoint
-  // this to the existing cart + `/store/office/carts/:id/confirm` flow (the
-  // group-order path createComgateCart already does the latter) and resolve
-  // real variant IDs instead of handle placeholders — fail fast with a clear,
-  // actionable message rather than attempting a request that cannot succeed.
-  throw new Error(
-    `Pending B2B orders are not available: the backend route ` +
-      `${config.backendUrl}/store/office/orders/pending is not implemented. ` +
-      `${req.items.length} item(s) were not submitted. Use the self-serve group-order ` +
-      `flow (create_group_order + place_group_order) or contact info@berryservis.cz.`
+  const variantByHandle = await resolveVariantIdsByHandle(
+    config,
+    req.items.map((i) => i.variant_id)
   );
+  const lineItems = req.items.map((item) => {
+    const variantId = variantByHandle.get(item.variant_id);
+    if (!variantId) {
+      throw new Error(
+        `Product "${item.variant_id}" is not published on the office sales channel.`
+      );
+    }
+    return { variant_id: variantId, quantity: item.quantity };
+  });
+
+  const regionId = await resolveRegionId(config);
+  const { cart } = await requestJson<{ cart: { id: string } }>(config, '/store/carts', {
+    method: 'POST',
+    body: JSON.stringify({ region_id: regionId }),
+  });
+
+  const confirmationToken = randomUUID();
+  const address = {
+    first_name: req.customer.name,
+    last_name: '',
+    company: req.metadata.company_name ?? '',
+    address_1: req.metadata.delivery_address,
+    city: 'Praha',
+    country_code: 'cz',
+  };
+  await requestJson(config, `/store/carts/${encodeURIComponent(cart.id)}`, {
+    method: 'POST',
+    body: JSON.stringify({
+      email: req.customer.email,
+      shipping_address: address,
+      billing_address: address,
+      metadata: { ...req.metadata, confirmation_token: confirmationToken },
+    }),
+  });
+
+  for (const li of lineItems) {
+    await requestJson(config, `/store/carts/${encodeURIComponent(cart.id)}/line-items`, {
+      method: 'POST',
+      body: JSON.stringify(li),
+    });
+  }
+
+  const { shipping_options } = await requestJson<{ shipping_options: Array<{ id: string }> }>(
+    config,
+    `/store/shipping-options?cart_id=${encodeURIComponent(cart.id)}&limit=50`
+  );
+  if (!shipping_options[0]) throw new Error('No shipping option available for this cart.');
+  await requestJson(config, `/store/carts/${encodeURIComponent(cart.id)}/shipping-methods`, {
+    method: 'POST',
+    body: JSON.stringify({ option_id: shipping_options[0].id }),
+  });
+
+  const { payment_collection } = await requestJson<{ payment_collection: { id: string } }>(
+    config,
+    '/store/payment-collections',
+    { method: 'POST', body: JSON.stringify({ cart_id: cart.id }) }
+  );
+  await requestJson(
+    config,
+    `/store/payment-collections/${encodeURIComponent(payment_collection.id)}/payment-sessions`,
+    { method: 'POST', body: JSON.stringify({ provider_id: B2B_PAYMENT_PROVIDER_ID }) }
+  );
+
+  const confirmed = await requestJson<{ order_id: string; display_id?: string | number | null }>(
+    config,
+    `/store/office/carts/${encodeURIComponent(cart.id)}/confirm`,
+    { method: 'POST', body: JSON.stringify({ token: confirmationToken }) }
+  );
+  return { order_id: confirmed.order_id, display_id: confirmed.display_id ?? undefined };
 }
 
 /* ---------- Group orders: Comgate cart composition ---------- */

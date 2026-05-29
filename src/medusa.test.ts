@@ -45,24 +45,79 @@ describe('medusa client', () => {
     expect(url).toContain('korporatni-dzemy-large');
   });
 
-  it('createPendingOrder fails fast with a clear error and does NOT call the backend (route not implemented)', async () => {
-    // The backend /store/office/orders/pending route was never built, so any
-    // call 404s. Until the design fork is resolved (build the route vs repoint
-    // to the cart+confirm flow), createPendingOrder must surface a clear,
-    // actionable error WITHOUT attempting the doomed request.
-    await expect(
-      createPendingOrder(config, {
-        items: [{ variant_id: 'v1', quantity: 30 }],
-        metadata: {
-          ico: '26155346',
-          delivery_tuesday: '2026-06-09',
-          delivery_contact_name: 'F',
-          delivery_contact_phone: '+420123456789',
-          delivery_address: 'Praha 1',
-        },
-        customer: { email: 'a@b.cz', name: 'F', phone: '+420123456789' },
+  it('createPendingOrder builds a cart with resolved variant ids and confirms it via /store/office/carts/:id/confirm', async () => {
+    const calls: Array<{ url: string; method: string; body: unknown }> = [];
+    const jsonRes = (body: unknown) =>
+      Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) } as Response);
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL, init: RequestInit = {}) => {
+        const url = String(input);
+        const method = (init.method ?? 'GET').toUpperCase();
+        const body = init.body ? JSON.parse(init.body as string) : undefined;
+        calls.push({ url, method, body });
+
+        if (method === 'GET' && url.includes('/store/products'))
+          return jsonRes({
+            products: [
+              { id: 'p1', handle: 'strawberry-box', title: 'Box', variants: [{ id: 'variant_straw' }] },
+              { id: 'p2', handle: 'mini-jam', title: 'Jam', variants: [{ id: 'variant_jam' }] },
+            ],
+          });
+        if (method === 'GET' && url.includes('/store/regions'))
+          return jsonRes({ regions: [{ id: 'reg_cz', countries: [{ iso_2: 'cz' }] }] });
+        if (method === 'POST' && /\/store\/carts$/.test(url)) return jsonRes({ cart: { id: 'cart_1' } });
+        if (method === 'POST' && /\/store\/carts\/cart_1$/.test(url)) return jsonRes({ cart: { id: 'cart_1' } });
+        if (method === 'POST' && url.includes('/store/carts/cart_1/line-items')) return jsonRes({});
+        if (method === 'GET' && url.includes('/store/shipping-options'))
+          return jsonRes({ shipping_options: [{ id: 'so_1' }] });
+        if (method === 'POST' && url.includes('/store/carts/cart_1/shipping-methods')) return jsonRes({});
+        if (method === 'POST' && /\/store\/payment-collections$/.test(url))
+          return jsonRes({ payment_collection: { id: 'pc_1' } });
+        if (method === 'POST' && url.includes('/store/payment-collections/pc_1/payment-sessions'))
+          return jsonRes({ payment_collection: { id: 'pc_1', payment_sessions: [] } });
+        if (method === 'POST' && url.includes('/store/office/carts/cart_1/confirm'))
+          return jsonRes({ order_id: 'order_1', display_id: '2026-AB12' });
+        return Promise.reject(new Error(`unexpected ${method} ${url}`));
       })
-    ).rejects.toThrow(/not (yet )?(available|implemented)/i);
-    expect((fetch as unknown as { mock: { calls: unknown[] } }).mock.calls).toHaveLength(0);
+    );
+
+    const result = await createPendingOrder(config, {
+      items: [
+        { variant_id: 'strawberry-box', quantity: 30 },
+        { variant_id: 'mini-jam', quantity: 30 },
+      ],
+      metadata: {
+        ico: '26155346',
+        delivery_tuesday: '2026-06-09',
+        delivery_contact_name: 'Jana',
+        delivery_contact_phone: '+420123456789',
+        delivery_address: 'Praha 1',
+        company_name: 'Acme s.r.o.',
+      },
+      customer: { email: 'a@b.cz', name: 'Jana', phone: '+420123456789' },
+    });
+
+    expect(result.order_id).toBe('order_1');
+
+    // Line items must use RESOLVED variant ids, never the handle placeholders.
+    const lineItemBodies = calls.filter((c) => c.url.includes('/line-items')).map((c) => c.body);
+    expect(lineItemBodies).toContainEqual({ variant_id: 'variant_straw', quantity: 30 });
+    expect(lineItemBodies).toContainEqual({ variant_id: 'variant_jam', quantity: 30 });
+
+    // Confirmation goes through the office confirm route with a token, and the
+    // same token was stored on the cart metadata when the cart was built.
+    const confirmCall = calls.find((c) => c.url.includes('/store/office/carts/cart_1/confirm'));
+    expect(confirmCall).toBeDefined();
+    const token = (confirmCall!.body as { token?: string }).token;
+    expect(typeof token).toBe('string');
+    expect((token ?? '').length).toBeGreaterThan(0);
+    const cartUpdate = calls.find((c) => /\/store\/carts\/cart_1$/.test(c.url) && c.method === 'POST');
+    expect((cartUpdate!.body as { metadata?: { confirmation_token?: string } }).metadata?.confirmation_token).toBe(token);
+
+    // B2B orders pay by invoice.
+    const paySession = calls.find((c) => c.url.includes('/payment-sessions'));
+    expect((paySession!.body as { provider_id?: string }).provider_id).toBe('invoice');
   });
 });
