@@ -73,6 +73,6 @@ export async function requestStrawberryOrder(
 
   return {
     order_id: result.order_id,
-    message: `Pending — confirmation email sent to ${args.billing_email}. Click the link within 24h to confirm. We'll deliver on ${args.tuesday} between 9:00 and 11:00. If overbooked, we'll contact you.`,
+    message: `Order placed for ${args.company_name} (invoice). An order confirmation has been emailed to ${args.billing_email}. Delivery on ${args.tuesday} between 9:00 and 11:00; if overbooked, we'll contact you.`,
   };
 }
