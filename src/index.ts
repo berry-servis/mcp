@@ -6,6 +6,9 @@
 import { createServer as createHttpServer } from 'node:http';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createServer } from './server.js';
+import { initSentry } from './lib/sentry.js';
+
+initSentry();
 
 const PORT = Number(process.env.PORT ?? 3000);
 
