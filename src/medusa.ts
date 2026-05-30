@@ -1,44 +1,18 @@
 import { randomUUID } from 'node:crypto';
+import type {
+  CartItem,
+  B2BMetadata,
+  CustomerInfo,
+  MedusaProduct,
+  OfficeOrderRequest,
+} from './contract/index.js';
 
-export interface CartItem {
-  variant_id: string;
-  quantity: number;
-}
-
-export interface B2BMetadata {
-  ico: string;
-  dic?: string;
-  delivery_tuesday: string;
-  delivery_contact_name: string;
-  delivery_contact_phone: string;
-  delivery_address: string;
-  delivery_notes?: string;
-  jam_addon?: boolean;
-  company_name?: string;
-}
-
-export interface CustomerInfo {
-  email: string;
-  name: string;
-  phone: string;
-}
-
-export interface OrderRequest {
-  items: CartItem[];
-  metadata: B2BMetadata;
-  customer: CustomerInfo;
-}
-
-export interface MedusaProduct {
-  id: string;
-  handle: string;
-  title: string;
-  variants: Array<{
-    id: string;
-    title: string;
-    calculated_price?: { calculated_amount?: number; currency_code?: string } | null;
-  }>;
-}
+// The Medusa wire DTOs come from the generated contract (src/contract, synced
+// from backend/openapi.yaml — see scripts/sync-medusa-contract.mjs). Re-export
+// them under this module's existing public names so the rest of mcp keeps
+// importing them from './medusa.js'.
+export type { CartItem, B2BMetadata, CustomerInfo, MedusaProduct };
+export type OrderRequest = OfficeOrderRequest;
 
 interface CreatePendingOrderResponse {
   order_id: string;
